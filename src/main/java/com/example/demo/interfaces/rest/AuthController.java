@@ -26,10 +26,6 @@ public class AuthController {
 
     @PostMapping("/login")
     public LoginResponse login(@Valid @RequestBody LoginRequest request) {
-        System.out.println("request.email()");
-        System.out.println(request.email());
-        System.out.println("request.password()");
-        System.out.println(request.password());
         LoginResult result = loginService.login(new LoginCommand(request.email(), request.password()));
         return new LoginResponse(result.userId(), result.email(), result.token());
     }
