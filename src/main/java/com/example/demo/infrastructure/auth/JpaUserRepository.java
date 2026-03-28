@@ -22,6 +22,11 @@ public class JpaUserRepository implements UserRepository {
     }
 
     @Override
+    public Optional<User> findById(UserId userId) {
+        return jpaRepository.findById(userId.value()).map(this::toDomain);
+    }
+
+    @Override
     public User save(User user) {
         UserJpaEntity entity = new UserJpaEntity(
                 user.id().value(),
