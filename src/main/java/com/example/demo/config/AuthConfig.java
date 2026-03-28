@@ -6,7 +6,9 @@ import com.example.demo.application.auth.TokenService;
 import com.example.demo.domain.auth.UserRepository;
 import com.example.demo.infrastructure.auth.BCryptPasswordHasher;
 import com.example.demo.infrastructure.auth.InMemoryUserRepository;
-import com.example.demo.infrastructure.auth.UuidTokenService;
+import com.example.demo.infrastructure.auth.JwtAuthenticationFilter;
+import com.example.demo.infrastructure.auth.JwtTokenService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -30,8 +32,15 @@ public class AuthConfig {
     }
 
     @Bean
-    public TokenService tokenService() {
-        return new UuidTokenService();
+    public JwtTokenService jwtTokenService(
+            @Value("${app.jwt.secret}") String secret,
+            @Value("${app.jwt.expiration-ms}") long expirationMs) {
+        return new JwtTokenService(secret, expirationMs);
+    }
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter(JwtTokenService jwtTokenService) {
+        return new JwtAuthenticationFilter(jwtTokenService);
     }
 
     @Bean
