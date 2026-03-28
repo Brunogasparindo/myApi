@@ -10,6 +10,7 @@ import com.example.demo.domain.auth.UserRepository;
 import com.example.demo.infrastructure.auth.BCryptPasswordHasher;
 import com.example.demo.infrastructure.auth.JpaRefreshTokenRepository;
 import com.example.demo.infrastructure.auth.JpaUserRepository;
+import com.example.demo.infrastructure.auth.LoginRateLimiter;
 import com.example.demo.infrastructure.auth.JwtAuthenticationFilter;
 import com.example.demo.infrastructure.auth.JwtTokenService;
 import com.example.demo.infrastructure.auth.RefreshTokenJpaRepository;
@@ -70,5 +71,10 @@ public class AuthConfig {
     @Bean
     public RegisterService registerService(UserRepository userRepository, PasswordHasher passwordHasher) {
         return new RegisterService(userRepository, passwordHasher);
+    }
+
+    @Bean
+    public LoginRateLimiter loginRateLimiter() {
+        return new LoginRateLimiter();
     }
 }

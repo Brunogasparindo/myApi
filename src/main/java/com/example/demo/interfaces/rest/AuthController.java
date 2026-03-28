@@ -12,6 +12,9 @@ import com.example.demo.application.auth.RefreshService;
 import com.example.demo.application.auth.RegisterCommand;
 import com.example.demo.application.auth.RegisterResult;
 import com.example.demo.application.auth.RegisterService;
+import com.example.demo.application.auth.TooManyRequestsException;
+import com.example.demo.infrastructure.auth.LoginRateLimiter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -29,17 +32,31 @@ public class AuthController {
     private final LoginService loginService;
     private final RegisterService registerService;
     private final RefreshService refreshService;
+    private final LoginRateLimiter loginRateLimiter;
 
-    public AuthController(LoginService loginService, RegisterService registerService, RefreshService refreshService) {
+    public AuthController(LoginService loginService, RegisterService registerService,
+                          RefreshService refreshService, LoginRateLimiter loginRateLimiter) {
         this.loginService = Objects.requireNonNull(loginService, "loginService must not be null");
         this.registerService = Objects.requireNonNull(registerService, "registerService must not be null");
         this.refreshService = Objects.requireNonNull(refreshService, "refreshService must not be null");
+        this.loginRateLimiter = Objects.requireNonNull(loginRateLimiter, "loginRateLimiter must not be null");
     }
 
     @PostMapping("/login")
-    public LoginResponse login(@Valid @RequestBody LoginRequest request) {
+    public LoginResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest httpRequest) {
+        if (!loginRateLimiter.tryConsume(extractClientIp(httpRequest))) {
+            throw new TooManyRequestsException();
+        }
         LoginResult result = loginService.login(new LoginCommand(request.email(), request.password()));
         return new LoginResponse(result.userId(), result.email(), result.token(), result.refreshToken());
+    }
+
+    private String extractClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
     }
 
     @PostMapping("/refresh")
@@ -65,6 +82,12 @@ public class AuthController {
     public ResponseEntity<ApiError> handleEmailTaken(EmailAlreadyTakenException ex) {
         ApiError body = new ApiError("EMAIL_TAKEN", ex.getMessage());
         return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiError> handleTooManyRequests(TooManyRequestsException ex) {
+        ApiError body = new ApiError("TOO_MANY_REQUESTS", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).body(body);
     }
 
     @ExceptionHandler(InvalidRefreshTokenException.class)
