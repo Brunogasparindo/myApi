@@ -1,9 +1,13 @@
 package com.example.demo.interfaces.rest;
 
 import com.example.demo.application.auth.AuthenticationFailedException;
+import com.example.demo.application.auth.EmailAlreadyTakenException;
 import com.example.demo.application.auth.LoginCommand;
 import com.example.demo.application.auth.LoginResult;
 import com.example.demo.application.auth.LoginService;
+import com.example.demo.application.auth.RegisterCommand;
+import com.example.demo.application.auth.RegisterResult;
+import com.example.demo.application.auth.RegisterService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +23,11 @@ import java.util.Objects;
 @RequestMapping("/api/auth")
 public class AuthController {
     private final LoginService loginService;
+    private final RegisterService registerService;
 
-    public AuthController(LoginService loginService) {
+    public AuthController(LoginService loginService, RegisterService registerService) {
         this.loginService = Objects.requireNonNull(loginService, "loginService must not be null");
+        this.registerService = Objects.requireNonNull(registerService, "registerService must not be null");
     }
 
     @PostMapping("/login")
@@ -30,9 +36,28 @@ public class AuthController {
         return new LoginResponse(result.userId(), result.email(), result.token());
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        RegisterResult result = registerService.register(new RegisterCommand(request.email(), request.password()));
+        RegisterResponse body = new RegisterResponse(result.userId(), result.email());
+        return ResponseEntity.status(HttpStatus.CREATED).body(body);
+    }
+
     @ExceptionHandler(AuthenticationFailedException.class)
     public ResponseEntity<ApiError> handleAuthFailure(AuthenticationFailedException ex) {
         ApiError body = new ApiError("AUTH_INVALID", ex.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
+    }
+
+    @ExceptionHandler(EmailAlreadyTakenException.class)
+    public ResponseEntity<ApiError> handleEmailTaken(EmailAlreadyTakenException ex) {
+        ApiError body = new ApiError("EMAIL_TAKEN", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(body);
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiError> handleBadInput(IllegalArgumentException ex) {
+        ApiError body = new ApiError("INVALID_INPUT", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(body);
     }
 }

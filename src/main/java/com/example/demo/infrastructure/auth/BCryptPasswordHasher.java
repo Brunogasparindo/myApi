@@ -13,6 +13,11 @@ public class BCryptPasswordHasher implements PasswordHasher {
     }
 
     @Override
+    public String hash(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
+    }
+
+    @Override
     public boolean matches(String rawPassword, String hashedPassword) {
         return passwordEncoder.matches(rawPassword, hashedPassword);
     }
